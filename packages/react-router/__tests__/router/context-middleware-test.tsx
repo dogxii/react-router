@@ -1684,6 +1684,181 @@ describe("context/middleware", () => {
         });
       });
     });
+
+    describe("redirects", () => {
+      it("allows you to return redirects before next from client middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/redirect",
+              middleware: [
+                async () => {
+                  return redirect("/target");
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.navigate("/redirect");
+        expect(router.state.location.pathname).toBe("/target");
+      });
+
+      it("allows you to return redirects after next from client middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/redirect",
+              middleware: [
+                async (_, next) => {
+                  await next();
+                  return redirect("/target");
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.navigate("/redirect");
+        expect(router.state.location.pathname).toBe("/target");
+      });
+
+      it("allows you to throw  redirects before next from client middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/redirect",
+              middleware: [
+                async () => {
+                  throw redirect("/target");
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.navigate("/redirect");
+        expect(router.state.location.pathname).toBe("/target");
+      });
+
+      it("allows you to throw redirects after next from client middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/redirect",
+              middleware: [
+                async (_, next) => {
+                  await next();
+                  throw redirect("/target");
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.navigate("/redirect");
+        expect(router.state.location.pathname).toBe("/target");
+      });
+
+      it("allows fetcher.load to follow redirects thrown from parent middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/parent",
+              middleware: [
+                async () => {
+                  throw redirect("/target");
+                },
+              ],
+              children: [
+                {
+                  id: "child",
+                  path: "child",
+                  loader() {
+                    return "CHILD";
+                  },
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.fetch("key", "source", "/parent/child");
+        expect(router.state.location.pathname).toBe("/target");
+      });
+
+      it("allows fetcher.submit to follow redirects thrown from parent middleware", async () => {
+        router = createRouter({
+          history: createMemoryHistory(),
+          routes: [
+            {
+              path: "/",
+            },
+            {
+              path: "/parent",
+              middleware: [
+                async () => {
+                  throw redirect("/target");
+                },
+              ],
+              children: [
+                {
+                  id: "child",
+                  path: "child",
+                  action() {
+                    return "CHILD";
+                  },
+                },
+              ],
+            },
+            {
+              path: "/target",
+            },
+          ],
+        });
+
+        await router.fetch("key", "source", "/parent/child", {
+          formMethod: "POST",
+          formData: createFormData({}),
+        });
+        expect(router.state.location.pathname).toBe("/target");
+      });
+    });
   });
 
   describe("middleware - handler.query", () => {
